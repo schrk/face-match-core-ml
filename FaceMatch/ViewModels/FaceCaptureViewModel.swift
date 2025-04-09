@@ -15,6 +15,7 @@ final class FaceCaptureViewModel: NSObject, ObservableObject {
     private let context = CIContext()
     private let videoOutput = AVCaptureVideoDataOutput()
     private var cancellables = Set<AnyCancellable>()
+    private var frameProcessor: VideoFrameProcessor?
     private let enrollmentService = EnrollmentService()
 
     @Published var currentFrame: UIImage?
@@ -53,7 +54,7 @@ private extension FaceCaptureViewModel {
             .compactMap { $0 }
             .throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] image in
-                Task {
+                Task { @MainActor in
                     await self?.handleFrame(image)
                 }
             }
@@ -73,12 +74,14 @@ private extension FaceCaptureViewModel {
 
         session.addInput(input)
 
-        videoOutput.setSampleBufferDelegate(
-            VideoFrameProcessor {
-                self.currentFrame = $0
-            },
-            queue: DispatchQueue(label: "frame.queue")
-        )
+        frameProcessor = VideoFrameProcessor { [weak self] frame in
+            Task { @MainActor in
+                self?.currentFrame = frame
+            }
+        }
+
+        videoOutput.setSampleBufferDelegate(frameProcessor, queue: DispatchQueue(label: "frame.queue"))
+
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
         }
@@ -99,16 +102,16 @@ private extension FaceCaptureViewModel {
 
     func processRegistration(_ image: UIImage) async {
         guard let cropped = await FaceCropper.cropFace(from: image) else {
-            await MainActor.run {
+            Task { @MainActor in
                 self.statusLog = "❌ Falha ao registrar rosto"
                 self.isRegistering = false
             }
             return
         }
 
-        await enrollmentService.enrollNewFace(image)
+        await enrollmentService.enrollNewFace(cropped)
 
-        await MainActor.run {
+        Task { @MainActor in
             self.statusLog = "✅ Rosto registrado com sucesso!"
             self.detectionStatus = "🔍 Iniciando verificação..."
             self.isRegistering = false
@@ -118,7 +121,7 @@ private extension FaceCaptureViewModel {
 
     func processVerification(_ image: UIImage) async {
         guard !enrollmentService.enrolledEmbeddings.isEmpty else {
-            await MainActor.run {
+            Task { @MainActor in
                 detectionStatus = "⏳ Aguardando cadastro de rosto..."
             }
             return
@@ -126,7 +129,7 @@ private extension FaceCaptureViewModel {
 
         guard let cropped = await FaceCropper.cropFace(from: image),
               let embedding = EmbeddingService.shared.generateEmbedding(from: cropped) else {
-            await MainActor.run {
+            Task { @MainActor in
                 detectionStatus = "❌ Rosto não reconhecido"
             }
             return
@@ -134,7 +137,7 @@ private extension FaceCaptureViewModel {
 
         let score = enrollmentService.bestMatch(for: embedding)
 
-        await MainActor.run {
+        Task { @MainActor in
             similarityScore = score
             detectionStatus = score > 0.93 ? "✅ Rosto reconhecido!" : "⚠️ Não corresponde"
         }
