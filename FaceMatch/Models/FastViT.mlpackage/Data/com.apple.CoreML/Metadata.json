@@ -1,0 +1,12 @@
+{
+  "MLModelVersionStringKey" : "1.0",
+  "MLModelDescriptionKey" : "FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization",
+  "MLModelCreatorDefinedKey" : {
+    "com.apple.developer.machine-learning.models.version" : "1.0",
+    "com.apple.developer.machine-learning.models.release-date" : "2024-06",
+    "com.apple.developer.machine-learning.models.name" : "FastViTMA36F16Headless.mlpackage",
+    "com.apple.developer.machine-learning.models.category" : "image"
+  },
+  "MLModelAuthorKey" : "Pavan Kumar Anasosalu Vasu, James Gabriel, Jeff Zhu, Oncel Tuzel, Anurag Ranjan. ICCV 2023. paper: https:\/\/huggingface.co\/papers\/2303.14189",
+  "MLModelLicenseKey" : "Custom Apple License, please see: https:\/\/github.com\/apple\/ml-fastvit\/blob\/8af5928238cab99c45f64fc3e4e7b1516b8224ba\/LICENSE"
+}
